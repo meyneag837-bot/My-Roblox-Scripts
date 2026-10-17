@@ -1,202 +1,57 @@
--- ==============================================================
--- FOXNAME HUB - ADVANCED STEAL PANEL
--- ==============================================================
+local autoStealActive = false
 
-local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
-
-local Window = Rayfield:CreateWindow({
-   Name = "Advanced Steal Panel",
-   LoadingTitle = "Loading Bypass System...",
-   LoadingSubtitle = "by Foxname",
-   ConfigurationSaving = { Enabled = false },
-   KeySystem = false
-})
-
-local PanelTab = Window:CreateTab("Steal Panel", 4483345998)
-
--- ==========================================
--- អថេរសម្រាប់ផ្ទុកទិន្នន័យ
--- ==========================================
-local liveItemsList = {"សូមចុចប៊ូតុងស្កេន..."}
-local rawItemsData = {} 
-local selectedItemString = ""
-local stealSteps = 6 
-local autoStealTargetActive = false
-
--- ==========================================
--- Function ហោះជាជំហានៗ (Bypass Anti-Cheat)
--- ==========================================
-local function StepTeleport(targetPart, steps)
-    local player = game.Players.LocalPlayer
-    local char = player.Character
-    if char and char:FindFirstChild("HumanoidRootPart") then
-        local root = char.HumanoidRootPart
-        local startPos = root.Position
-        local targetPos = targetPart.Position
-        
-        local stepVector = (targetPos - startPos) / steps
-        
-        for i = 1, steps do
-            root.CFrame = CFrame.new(startPos + (stepVector * i))
-            task.wait(0.1) -- រង់ចាំបន្តិចនៅរាល់ជំហាននីមួយៗ
-        end
-    end
-end
-
--- ==========================================
--- ផ្នែក UI: ការកំណត់ និងបញ្ជីគោលដៅ
--- ==========================================
-PanelTab:CreateSection("១. ការកំណត់ការហោះលួច (Bypass Settings)")
-
-PanelTab:CreateSlider({
-   Name = "Instant Steal Steps (ជំហានហោះសុវត្ថិភាព)",
-   Range = {1, 20},
-   Increment = 1,
-   Suffix = " ជំហាន",
-   CurrentValue = 6,
-   Flag = "StealStepsSlider",
-   Callback = function(Value)
-        stealSteps = Value
-   end,
-})
-
-PanelTab:CreateSection("២. បញ្ជីមុខសញ្ញា (Live Targets)")
-
-local ItemDropdown = PanelTab:CreateDropdown({
-   Name = "ជ្រើសរើសវត្ថុដើម្បីលួច",
-   Options = liveItemsList,
-   CurrentOption = {liveItemsList[1]},
-   MultipleOptions = false,
-   Flag = "TargetDropdown",
-   Callback = function(Option)
-        selectedItemString = Option[1]
-   end,
-})
-
--- ប៊ូតុងស្កេន និងតម្រៀបពីថ្លៃទៅថោក (Sort Highest Value)
-PanelTab:CreateButton({
-   Name = "🔄 ស្កេនទាញទិន្នន័យ (Sort: Highest Value)",
-   Callback = function()
-        local scannedData = {} 
-        local newList = {}
-        rawItemsData = {}
-        
-        for _, item in pairs(workspace:GetDescendants()) do
-            -- កែប្រែលក្ខខណ្ឌឈ្មោះនៅទីនេះបានតាមចិត្ត (Egg, Pet, Bull, Fox...)
-            if item:IsA("BasePart") and (string.find(item.Name, "Egg") or string.find(item.Name, "Secret") or string.find(item.Name, "Bull") or string.find(item.Name, "Pet")) then
-                
-                local rawValue = 0
-                if item:FindFirstChild("Value") then
-                    rawValue = tonumber(item.Value.Value) or 0
-                end
-                
-                local rawWeight = item:FindFirstChild("Weight") and tostring(item.Weight.Value) or "0"
-                local displayText = string.format("%s | $%s/s | %s Kg", item.Name, tostring(rawValue), rawWeight)
-                
-                table.insert(scannedData, {
-                    Text = displayText,
-                    Item = item,
-                    SortValue = rawValue
-                })
-            end
-        end
-        
-        -- រៀបចំពីធំទៅតូច
-        table.sort(scannedData, function(a, b)
-            return a.SortValue > b.SortValue
-        end)
-        
-        for _, data in ipairs(scannedData) do
-            table.insert(newList, data.Text)
-            rawItemsData[data.Text] = data.Item 
-        end
-        
-        if #newList == 0 then table.insert(newList, "រកមិនឃើញវត្ថុទេ") end
-        ItemDropdown:Refresh(newList)
-        Rayfield:Notify({Title = "ស្កេនជោគជ័យ", Content = "រៀបចំតាមតម្លៃថ្លៃបំផុតនៅខាងលើរួចរាល់!", Duration = 3})
-   end,
-})
-
-PanelTab:CreateSection("៣. បញ្ជាឱ្យលួច (Execution)")
-
--- ប៊ូតុងលួចភ្លាមៗ (ចុចម្តងលួចម្តង)
-PanelTab:CreateButton({
-   Name = "🟢 ធ្វើការលួចភ្លាមៗ (INSTANT STEAL)",
-   Callback = function()
-        if selectedItemString == "" or selectedItemString == "សូមចុចប៊ូតុងស្កេន..." or selectedItemString == "រកមិនឃើញវត្ថុទេ" then
-            return Rayfield:Notify({Title = "កំហុស", Content = "សូមរើសវត្ថុមុខសញ្ញាសិន", Duration = 2})
-        end
-        
-        local targetItem = rawItemsData[selectedItemString]
-        if targetItem and targetItem.Parent then
-            Rayfield:Notify({Title = "Stealing...", Content = "កំពុងហោះទៅលួចជា " .. stealSteps .. " ជំហាន", Duration = 2})
-            
-            StepTeleport(targetItem, stealSteps)
-            
-            task.wait(0.2)
-            pcall(function()
-                targetItem.CFrame = game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame
-            end)
-        else
-            Rayfield:Notify({Title = "បរាជ័យ", Content = "វត្ថុនេះត្រូវគេយកបាត់ហើយ!", Duration = 2})
-        end
-   end,
-})
-
--- Toggle សម្រាប់ Auto Steal សត្វនោះរហូតទាល់តែបិទវិញ
-PanelTab:CreateToggle({
-   Name = "🔄 Auto Steal (លួចសត្វនេះដោយស្វ័យប្រវត្តិ)",
+MainTab:CreateToggle({
+   Name = "🔄 Auto Steal (ប្រើកូដចុចអក្សរ E)",
    CurrentValue = false,
-   Flag = "AutoStealAdvancedToggle",
+   Flag = "AutoStealPromptToggle",
    Callback = function(Value)
-        autoStealTargetActive = Value
+        autoStealActive = Value
         
-        if autoStealTargetActive then
-            if selectedItemString == "" or selectedItemString == "សូមចុចប៊ូតុងស្កេន..." or selectedItemString == "រកមិនឃើញវត្ថុទេ" then
-                Rayfield:Notify({Title = "មានកំហុស", Content = "សូមជ្រើសរើសវត្ថុពីបញ្ជីខាងលើជាមុនសិន!", Duration = 3})
-                return
-            end
-            
-            local targetInstance = rawItemsData[selectedItemString]
-            local targetRealName = targetInstance and targetInstance.Name or ""
-            
-            if targetRealName == "" then return end
-            Rayfield:Notify({Title = "Auto Steal បើកដំណើរការ", Content = "កំពុងតាមលួច: " .. targetRealName, Duration = 2})
+        if autoStealActive then
+            Rayfield:Notify({Title = "Auto Steal", Content = "កំពុងស្កេនរកវត្ថុ និងបញ្ជាចុច E...", Duration = 2})
             
             task.spawn(function()
-                while autoStealTargetActive do
-                    task.wait(1) 
+                while autoStealActive do
+                    task.wait(0.1) -- សម្រាកបន្តិចកុំឱ្យទូរស័ព្ទគាំង
                     
                     local player = game.Players.LocalPlayer
                     local char = player.Character
                     
                     if char and char:FindFirstChild("HumanoidRootPart") then
-                        local foundItem = false
+                        local rootPart = char.HumanoidRootPart
                         
+                        -- រាវរកវត្ថុនៅក្នុងហ្គេម
                         for _, item in pairs(workspace:GetDescendants()) do
-                            if not autoStealTargetActive then break end
+                            if not autoStealActive then break end 
                             
-                            if item:IsA("BasePart") and item.Name == targetRealName then
-                                foundItem = true
-                                StepTeleport(item, stealSteps)
+                            -- ស្វែងរកឈ្មោះវត្ថុដែលអ្នកចង់បាន (ឧទាហរណ៍៖ Egg ឬ Secret)
+                            if item:IsA("BasePart") and (string.find(item.Name, "Egg") or string.find(item.Name, "Secret")) then
                                 
-                                task.wait(0.2)
-                                pcall(function()
-                                    item.CFrame = char.HumanoidRootPart.CFrame
-                                end)
+                                -- រាវរកប្រព័ន្ធ ProximityPrompt (អក្សរ E) ដែលលាក់នៅខាងក្នុងវត្ថុនោះ
+                                local prompt = item:FindFirstChildWhichIsA("ProximityPrompt", true)
                                 
-                                task.wait(1)
-                                break 
+                                if prompt then
+                                    pcall(function()
+                                        -- ១. ហោះទៅឈរជិតវត្ថុនោះសិន ដើម្បីកុំឱ្យ Server ចាប់បានថាចុចពីចម្ងាយ
+                                        rootPart.CFrame = item.CFrame + Vector3.new(0, 2, 0)
+                                        task.wait(0.1) -- រង់ចាំបន្តិចឱ្យ Server ទទួលស្គាល់ទីតាំងថ្មី
+                                        
+                                        -- ២. បញ្ជាឱ្យចុចអក្សរ E ដោយស្វ័យប្រវត្តិ
+                                        fireproximityprompt(prompt)
+                                        
+                                        -- (ជម្រើសបន្ថែម) បើ Executor ខ្លះទាមទារប៉ារ៉ាម៉ែត្របន្ថែម សូមសាកល្បងកូដនេះជំនួស៖
+                                        -- fireproximityprompt(prompt, 1, true)
+                                    end)
+                                    
+                                    task.wait(0.5) -- សម្រាកកន្លះវិនាទី មុននឹងហោះទៅចុចវត្ថុបន្ទាប់កុំឱ្យ Spam
+                                end
                             end
                         end
-                        if not foundItem then task.wait(2) end
                     end
                 end
             end)
         else
-            Rayfield:Notify({Title = "Auto Steal ត្រូវបានបិទ", Content = "បញ្ឈប់ការលួចស្វ័យប្រវត្តិ។", Duration = 2})
+            Rayfield:Notify({Title = "បញ្ឈប់", Content = "បានបញ្ឈប់ការលួចដោយចុច E។", Duration = 2})
         end
    end,
 })
-
-Rayfield:LoadConfiguration()
