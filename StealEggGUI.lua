@@ -1,149 +1,136 @@
 -- ==============================================================
--- Foxname Hub - Steal An Egg Script (Rayfield Library)
+-- FOXNAME HUB - ULTIMATE STEAL AN EGG SCRIPT
 -- ==============================================================
 
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
--- ១. បង្កើតផ្ទាំង Window និងប្រព័ន្ធ Key
 local Window = Rayfield:CreateWindow({
-   Name = "Foxname Hub - Premium",
-   LoadingTitle = "Loading Foxname Script...",
+   Name = "Foxname Hub - Ultimate",
+   LoadingTitle = "Loading Script...",
    LoadingSubtitle = "by Foxname",
-   ConfigurationSaving = {
-      Enabled = false,
-      FolderName = "FoxnameScript",
-      FileName = "FoxnameHub"
-   },
-   Discord = {
-      Enabled = false, 
-      Invite = "noinvitelink", 
-      RememberJoins = true 
-   },
-   KeySystem = true, -- បើកប្រព័ន្ធ Key
-   KeySettings = {
-      Title = "Foxname Hub",
-      Subtitle = "Key System",
-      Note = "សូមប្រើប្រាស់ Key: Foxname2026 ដើម្បីចូល",
-      FileName = "FoxnameHubKey",
-      SaveKey = true, 
-      GrabKeyFromSite = false, 
-      Key = {"Foxname2026"} -- Key សម្រាប់ចូល
-   }
+   ConfigurationSaving = { Enabled = false },
+   KeySystem = false -- បានបិទប្រព័ន្ធ Key មិនឱ្យទាមទារលេខសម្ងាត់
 })
 
--- ២. លោត Notification ពេលចូលជោគជ័យ
-Rayfield:Notify({
-   Title = "ចូលជោគជ័យ!",
-   Content = "អ្នកបានវាយ Key ត្រឹមត្រូវ! សូមស្វាគមន៍មកកាន់ Foxname Hub.",
-   Duration = 5,
-   Image = 4483345998,
-})
+-- ==============================================================
+-- ផ្នែកទី ១៖ អថេរ និង FUNCTIONS គោល
+-- ==============================================================
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+local player = game.Players.LocalPlayer
 
--- ៣. បង្កើត Tabs
-local MainTab = Window:CreateTab("Auto Farm", 4483345998)
-local PlayerTab = Window:CreateTab("Player Settings", 4483345998)
+-- ១.១ ប្រព័ន្ធការពារ Anti-AFK
+local VirtualUser = game:GetService("VirtualUser")
+player.Idled:Connect(function()
+    VirtualUser:CaptureController()
+    VirtualUser:ClickButton2(Vector2.new())
+end)
 
--- ៤. បង្កើតអថេរសម្រាប់ផ្ទុកទិន្នន័យ
-local selectedArea = "Spawn"
-local selectedRarity = "Common"
-local autoStealActive = false
-local autoStealSecretActive = false
-
--- ៥. Function គោលសម្រាប់លួចស៊ុត
-local function StealTargetEgg(targetName, targetArea, targetRarity)
-    local player = game.Players.LocalPlayer
+-- ១.២ Function ហោះ (Tween Teleport) រួមជាមួយ Noclip ទម្លុះជញ្ជាំង
+local isTweening = false
+local function TweenTeleport(targetCFrame, duration)
     local character = player.Character
-    if not (character and character:FindFirstChild("HumanoidRootPart")) then return end
-    local rootPart = character.HumanoidRootPart
-    
-    for _, item in pairs(workspace:GetDescendants()) do
-        -- ឆែកឈ្មោះ (យកទាំង Egg ធម្មតា និងឈ្មោះ Secret Egg ផ្សេងៗ)
-        if item:IsA("BasePart") and (item.Name == targetName or (targetName == "Secret Egg" and (item.Name == "Secret" or item.Name == "SecretEgg"))) then
-            
-            -- ឆែកតំបន់ និង កម្រិត
-            if targetArea and item.Parent and item.Parent.Name ~= targetArea then continue end
-            if targetRarity and item:FindFirstChild("Rarity") and item.Rarity.Value ~= targetRarity then continue end
-            
-            -- ទាញយកស៊ុត
-            item.CFrame = rootPart.CFrame
-            
-            -- លោតសារអបអរ បើបានស៊ុតកម្រិតកំពូល
-            if targetName == "Secret Egg" or targetRarity == "Divine" or targetRarity == "Eternal" or targetRarity == "Secret" then
-                Rayfield:Notify({
-                   Title = "🎉 អបអរសាទរ!",
-                   Content = "អ្នកទទួលបានស៊ុតកម្រិតកំពូល!",
-                   Duration = 3,
-                   Image = 4483345998,
-                })
+    if character and character:FindFirstChild("HumanoidRootPart") then
+        isTweening = true
+        local rootPart = character.HumanoidRootPart
+        
+        -- បើក Noclip មិនឱ្យទាក់ជញ្ជាំង
+        local noclipConnection = RunService.Stepped:Connect(function()
+            if isTweening then
+                for _, part in pairs(character:GetDescendants()) do
+                    if part:IsA("BasePart") and part.CanCollide then
+                        part.CanCollide = false
+                    end
+                end
             end
-            
-            task.wait(0.05)
-        end
+        end)
+        
+        local tweenInfo = TweenInfo.new(duration, Enum.EasingStyle.Linear)
+        local tween = TweenService:Create(rootPart, tweenInfo, {CFrame = targetCFrame})
+        tween:Play()
+        
+        tween.Completed:Connect(function()
+            isTweening = false
+            noclipConnection:Disconnect() -- បិទ Noclip វិញពេលហោះដល់
+        end)
     end
 end
 
 -- ==============================================================
--- ផ្នែក MAIN TAB (មុខងារលួចស៊ុត)
+-- ផ្នែកទី ២៖ បង្កើត TABS
 -- ==============================================================
-MainTab:CreateSection("ការកំណត់ (Settings)")
+local MainTab = Window:CreateTab("Auto Farm", 4483345998)
+local ScannerTab = Window:CreateTab("Live Scanner", 4483345998)
+local PlayerTab = Window:CreateTab("Player & Misc", 4483345998)
+
+-- ==============================================================
+-- ផ្នែកទី ៣៖ MAIN TAB (មុខងារលួចទូទៅ & ទិន្នន័យ)
+-- ==============================================================
+-- ផ្ទាំង Live Stats
+local StatTracker = MainTab:CreateParagraph({Title = "📊 ទិន្នន័យផ្ទាល់ខ្លួន (Live Stats)", Content = "កំពុងទាញយកទិន្នន័យ..."})
+
+task.spawn(function()
+    while task.wait(1) do
+        if player:FindFirstChild("leaderstats") then
+            local stats = player.leaderstats
+            local money = stats:FindFirstChild("Money") or stats:FindFirstChild("Coins")
+            local eggs = stats:FindFirstChild("Eggs")
+            
+            local moneyVal = money and tostring(money.Value) or "0"
+            local eggsVal = eggs and tostring(eggs.Value) or "0"
+            
+            local displayString = string.format("<font color='#FFD700'>💰 លុយ: %s</font>\n<font color='#FFB6C1'>🥚 ពង: %s</font>", moneyVal, eggsVal)
+            StatTracker:Set({Title = "📊 ទិន្នន័យផ្ទាល់ខ្លួន (Live Stats)", Content = displayString})
+        end
+    end
+end)
+
+-- ការកំណត់ និងបញ្ជា Auto Steal
+local selectedArea = "Spawn"
+local selectedRarity = "Common"
+local autoStealActive = false
 
 MainTab:CreateDropdown({
-   Name = "Areas to Steal (តំបន់)",
+   Name = "ជ្រើសរើសតំបន់ (Area)",
    Options = {"Spawn", "Desert", "Snow", "Volcano", "Heaven"},
    CurrentOption = {"Spawn"},
-   MultipleOptions = false,
-   Flag = "AreaDropdown", 
-   Callback = function(Option)
-        selectedArea = Option[1]
-   end,
+   Flag = "AreaDrop",
+   Callback = function(Option) selectedArea = Option[1] end,
 })
 
 MainTab:CreateDropdown({
-   Name = "Egg Rarities (កម្រិតស៊ុត)",
-   Options = {"Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythical", "Secret", "Eternal", "Divine"},
+   Name = "ជ្រើសរើសកម្រិត (Rarity)",
+   Options = {"Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythical", "Secret", "Divine"},
    CurrentOption = {"Common"},
-   MultipleOptions = false,
-   Flag = "RarityDropdown", 
-   Callback = function(Option)
-        selectedRarity = Option[1]
-   end,
+   Flag = "RarityDrop",
+   Callback = function(Option) selectedRarity = Option[1] end,
 })
 
-MainTab:CreateSection("មុខងារលួច (Auto Steal)")
-
 MainTab:CreateToggle({
-   Name = "Auto Steal Selected Eggs",
+   Name = "Auto Steal (លួចតាមតំបន់ & កម្រិត)",
    CurrentValue = false,
-   Flag = "AutoStealToggle", 
+   Flag = "StealToggle",
    Callback = function(Value)
         autoStealActive = Value
-        if Value then Rayfield:Notify({ Title = "ប្រព័ន្ធដំណើរការ", Content = "កំពុងស្វែងរកស៊ុត...", Duration = 2 }) end
-        
         if autoStealActive then
             task.spawn(function()
                 while autoStealActive do
                     task.wait(0.1)
-                    StealTargetEgg("Egg", selectedArea, selectedRarity)
-                end
-            end)
-        end
-   end,
-})
-
-MainTab:CreateToggle({
-   Name = "Auto Steal Secret Egg (គ្រប់តំបន់)",
-   CurrentValue = false,
-   Flag = "AutoStealSecretToggle", 
-   Callback = function(Value)
-        autoStealSecretActive = Value
-        if Value then Rayfield:Notify({ Title = "ប្រព័ន្ធដំណើរការ", Content = "កំពុងស្វែងរក Secret Egg...", Duration = 2 }) end
-        
-        if autoStealSecretActive then
-            task.spawn(function()
-                while autoStealSecretActive do
-                    task.wait(0.1)
-                    -- ដាក់ nil ដើម្បីឱ្យវាលួចគ្រប់តំបន់ និងគ្រប់កម្រិត
-                    StealTargetEgg("Secret Egg", nil, nil) 
+                    local character = player.Character
+                    if character and character:FindFirstChild("HumanoidRootPart") then
+                        local rootPart = character.HumanoidRootPart
+                        for _, item in pairs(workspace:GetDescendants()) do
+                            if not autoStealActive then break end 
+                            if item:IsA("BasePart") and string.find(item.Name, "Egg") then
+                                if item.Parent and item.Parent.Name == selectedArea then
+                                    if item:FindFirstChild("Rarity") and item.Rarity.Value == selectedRarity then
+                                        pcall(function() item.CFrame = rootPart.CFrame end)
+                                        task.wait(0.05)
+                                    end
+                                end
+                            end
+                        end
+                    end
                 end
             end)
         end
@@ -151,30 +138,93 @@ MainTab:CreateToggle({
 })
 
 -- ==============================================================
--- ផ្នែក PLAYER TAB (មុខងារតួអង្គ)
+-- ផ្នែកទី ៤៖ SCANNER TAB (ស្កេន និង Teleport ហោះទៅរកស៊ុត)
+-- ==============================================================
+local selectedLiveEgg = ""
+local liveEggsList = {"មិនទាន់ស្កេន..."}
+
+local LiveEggDropdown = ScannerTab:CreateDropdown({
+   Name = "ជ្រើសរើសស៊ុត (Select Live Egg)",
+   Options = liveEggsList,
+   CurrentOption = {liveEggsList[1]},
+   Flag = "LiveEggDrop",
+   Callback = function(Option) selectedLiveEgg = Option[1] end,
+})
+
+ScannerTab:CreateButton({
+   Name = "🔄 ស្កេនទាញឈ្មោះស៊ុតលើ Map ថ្មីៗ",
+   Callback = function()
+        local foundEggs = {}
+        local eggDict = {} 
+        for _, item in pairs(workspace:GetDescendants()) do
+            if item:IsA("BasePart") and (string.find(item.Name, "Egg") or string.find(item.Name, "Secret")) then
+                if not eggDict[item.Name] then
+                    eggDict[item.Name] = true
+                    table.insert(foundEggs, item.Name)
+                end
+            end
+        end
+        if #foundEggs == 0 then table.insert(foundEggs, "រកមិនឃើញស៊ុតទេ") end
+        LiveEggDropdown:Refresh(foundEggs)
+        Rayfield:Notify({Title = "ជោគជ័យ", Content = "ស្កេនឃើញ " .. #foundEggs .. " ប្រភេទ", Duration = 3})
+   end,
+})
+
+ScannerTab:CreateButton({
+   Name = "🚀 ហោះទៅរកស៊ុតនេះ (Tween Teleport)",
+   Callback = function()
+        if selectedLiveEgg == "" or selectedLiveEgg == "មិនទាន់ស្កេន..." then return end
+        for _, item in pairs(workspace:GetDescendants()) do
+            if item:IsA("BasePart") and item.Name == selectedLiveEgg then
+                TweenTeleport(item.CFrame + Vector3.new(0, 3, 0), 3) -- ហោះប្រើពេល ៣ វិនាទី
+                Rayfield:Notify({Title = "កំពុងហោះ...", Content = "ហោះទៅរក: " .. selectedLiveEgg, Duration = 3})
+                break
+            end
+        end
+   end,
+})
+
+-- ==============================================================
+-- ផ្នែកទី ៥៖ PLAYER TAB (ល្បឿន និងសន្សំថ្ម)
 -- ==============================================================
 PlayerTab:CreateSection("ល្បឿនរត់ (WalkSpeed)")
 
 PlayerTab:CreateButton({
-   Name = "រត់លឿន (Speed * 128)",
+   Name = "កំណត់ល្បឿនរត់ 128",
    Callback = function()
-        local player = game.Players.LocalPlayer
         if player.Character and player.Character:FindFirstChild("Humanoid") then
             player.Character.Humanoid.WalkSpeed = 128
-            Rayfield:Notify({ Title = "ល្បឿន", Content = "បានដំឡើងល្បឿនទៅ 128", Duration = 2 })
         end
    end,
 })
 
 PlayerTab:CreateButton({
-   Name = "ល្បឿនធម្មតា (Speed 16)",
+   Name = "ល្បឿនធម្មតា 16",
    Callback = function()
-        local player = game.Players.LocalPlayer
         if player.Character and player.Character:FindFirstChild("Humanoid") then
             player.Character.Humanoid.WalkSpeed = 16
         end
    end,
 })
 
--- ចំណុចបញ្ចប់នៃការរៀបចំ UI របស់ Rayfield
+PlayerTab:CreateSection("ប្រព័ន្ធទប់ការគាំង (Optimization)")
+
+PlayerTab:CreateButton({
+   Name = "ដំណើរការ FPS Booster (បន្ថយក្រាហ្វិក)",
+   Callback = function()
+        local lighting = game:GetService("Lighting")
+        lighting.GlobalShadows = false
+        lighting.FogEnd = 9e9
+        
+        for _, obj in pairs(workspace:GetDescendants()) do
+            pcall(function()
+                if obj:IsA("BasePart") then obj.Material = Enum.Material.SmoothPlastic end
+                if obj:IsA("Decal") or obj:IsA("Texture") or obj:IsA("ParticleEmitter") then obj:Destroy() end
+            end)
+        end
+        Rayfield:Notify({Title = "FPS Booster", Content = "ក្រាហ្វិកត្រូវបានបន្ថយ!", Duration = 3})
+   end,
+})
+
 Rayfield:LoadConfiguration()
+Rayfield:Notify({Title = "Foxname Hub", Content = "Script បានដំណើរការជោគជ័យពេញលេញ!", Duration = 5})
