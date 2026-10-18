@@ -1,56 +1,92 @@
--- ==============================================================
--- Foxname Personal Hub Loader (Universal Script)
--- ==============================================================
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
 
--- ១. ដាក់តំណភ្ជាប់ (Raw Links) នៃ Script របស់អ្នកនៅទីនេះ
-local StealAnEgg_Script = "https://raw.githubusercontent.com/meyneag837-bot/My-Roblox-Scripts/refs/heads/main/StealEggGUI.lua"
--- អ្នកអាចថែម Script ហ្គេមផ្សេងៗទៀតនៅថ្ងៃក្រោយ (ឧ. local BloxFruit_Script = "...")
+local localPlayer = Players.LocalPlayer
+local eggsFolder = workspace:WaitForChild("EggsFolder")
 
--- ២. ផ្គូផ្គង GameId ឬ PlaceId ទៅនឹង Script
-local scriptsByGame = {
-    [10563114921] = StealAnEgg_Script, -- GameId របស់ហ្គេម Steal An Egg
-}
+-- កំណត់ចម្ងាយ (គិតជា Studs) ដែលអាចរើសពងបាន
+local PICKUP_RANGE = 12 
 
-local scriptsByPlace = {
-    [107778070777162] = StealAnEgg_Script, -- PlaceId របស់ហ្គេម Steal An Egg
-}
+-- ១. បង្កើតពន្លឺ Highlight សម្រាប់ព័ទ្ធជុំវិញពងដែលនៅជិតបំផុត
+local rangeHighlight = Instance.new("Highlight")
+rangeHighlight.Name = "EggRangeHighlight"
+rangeHighlight.FillColor = Color3.fromRGB(85, 255, 127)
+rangeHighlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+rangeHighlight.FillTransparency = 0.65
+rangeHighlight.Enabled = false
+rangeHighlight.Parent = workspace
 
--- ៣. រង់ចាំរហូតដល់ហ្គេម Load លេខសម្គាល់ពេញលេញ
-local gameId = game.GameId
-local placeId = game.PlaceId
-while gameId == 0 and placeId == 0 do
-    task.wait(1)
-    gameId = game.GameId
-    placeId = game.PlaceId
+-- ២. បង្កើតផ្ទាំង BillboardGui សម្រាប់បង្ហាញអក្សរ និងចម្ងាយពីលើពង
+local rangeBillboard = Instance.new("BillboardGui")
+rangeBillboard.Name = "RangeIndicatorGui"
+rangeBillboard.Size = UDim2.new(0, 220, 0, 55)
+rangeBillboard.StudsOffset = Vector3.new(0, 3.5, 0) -- កម្ពស់ពីលើពង
+rangeBillboard.AlwaysOnTop = true
+rangeBillboard.Enabled = false
+rangeBillboard.Parent = localPlayer:WaitForChild("PlayerGui")
+
+local infoLabel = Instance.new("TextLabel")
+infoLabel.Size = UDim2.new(1, 0, 1, 0)
+infoLabel.BackgroundColor3 = Color3.fromRGB(20, 25, 30)
+infoLabel.BackgroundTransparency = 0.2
+infoLabel.TextColor3 = Color3.fromRGB(85, 255, 127)
+infoLabel.Font = Enum.Font.GothamBold
+infoLabel.TextSize = 15
+infoLabel.Text = ""
+infoLabel.Parent = rangeBillboard
+
+local uiCorner = Instance.new("UICorner")
+uiCorner.CornerRadius = UDim.new(0, 8)
+uiCorner.Parent = infoLabel
+
+-- ៣. មុខងារស្វែងរកពងដែលនៅជិតអ្នកលេងបំផុតក្នុងរង្វង់ Range
+local function findClosestEggInRange(rootPosition)
+	local closestEgg = nil
+	local shortestDistance = PICKUP_RANGE
+
+	for _, item in ipairs(eggsFolder:GetChildren()) do
+		-- ឆែកមើលថាតើជា BasePart ឬ Model ដែលមាន PrimaryPart
+		local eggPart = item:IsA("BasePart") and item or (item:IsA("Model") and item.PrimaryPart)
+		
+		-- មិនចាប់យកពងណាដែលកំពុងជាប់ Weld (មានគេលួចកាន់រួចហើយ) ទេ
+		if eggPart and not eggPart:FindFirstChild("CarryWeld") then
+			local distance = (rootPosition - eggPart.Position).Magnitude
+			if distance <= shortestDistance then
+				shortestDistance = distance
+				closestEgg = eggPart
+			end
+		end
+	end
+
+	return closestEgg, shortestDistance
 end
 
--- ៤. ឆែកមើលថាតើហ្គេមដែលកំពុងលេងមានក្នុងបញ្ជីរបស់អ្នកឬទេ
-local scriptUrl = scriptsByGame[gameId] or scriptsByPlace[placeId]
+-- ៤. ឆែកមើលចម្ងាយជាប្រចាំតាមរយៈ RunService.Heartbeat
+RunService.Heartbeat:Connect(function()
+	local character = localPlayer.Character
+	local rootPart = character and character:FindFirstChild("HumanoidRootPart")
 
-if not scriptUrl then
-    -- លោតសារប្រាប់ក្នុង Console បើចូលលេងហ្គេមផ្សេងដែលមិនទាន់មាន Script
-    warn("Foxname Hub: មិនទាន់មាន Script សម្រាប់ហ្គេមនេះទេ! (PlaceId: " .. tostring(placeId) .. ")")
-    return
-end
+	if not rootPart then
+		rangeHighlight.Enabled = false
+		rangeBillboard.Enabled = false
+		return
+	end
 
-print("Foxname Hub: ស្គាល់ហ្គេមហើយ កំពុងដំណើរការ Script...")
+	local targetEgg, distance = findClosestEggInRange(rootPart.Position)
 
--- ៥. ប្រព័ន្ធទាញយក និងដំណើរការកូដ (ព្យាយាម ៣ ដងបើអ៊ីនធឺណិតរអាក់រអួល)
-for attempt = 1, 3 do
-    local success, sourceCode = pcall(game.HttpGet, game, scriptUrl)
-    
-    if success and type(sourceCode) == "string" and sourceCode ~= "" then
-        local loadFunction = loadstring(sourceCode)
-        if loadFunction then
-            loadFunction() -- បញ្ជាឱ្យផ្ទាំង Script លោតចេញមក
-            print("✅ Foxname Hub ដំណើរការជោគជ័យ!")
-            return
-        end
-    end
-    
-    warn("⚠️ ការទាញយកបរាជ័យលើកទី " .. attempt .. " កំពុងព្យាយាមម្តងទៀត...")
-    task.wait(1) -- រង់ចាំ ១ វិនាទីមុននឹងសាកល្បងម្តងទៀត
-end
+	if targetEgg then
+		-- បើកសញ្ញាប្រាប់នៅលើពងដែលនៅជិតបំផុត
+		rangeHighlight.Adornee = targetEgg
+		rangeHighlight.Enabled = true
 
--- បើអ៊ីនធឺណិតដាច់ ឬ Link ខូច វានឹងលោតសារនេះ
-warn("❌ មិនអាចទាញយក Script បានទេ! សូមឆែកមើលអ៊ីនធឺណិត ឬតំណភ្ជាប់ GitHub របស់អ្នក។")
+		rangeBillboard.Adornee = targetEgg
+		rangeBillboard.Enabled = true
+		infoLabel.Text = string.format("🥚 អាចរើសបាន! (%.1f Studs)\n[ចូលជិតដើម្បីលួចពង]", distance)
+	else
+		-- បិទសញ្ញាវិញនៅពេលដើរចេញផុតពី Range
+		rangeHighlight.Adornee = nil
+		rangeHighlight.Enabled = false
+		rangeBillboard.Adornee = nil
+		rangeBillboard.Enabled = false
+	end
+end)
